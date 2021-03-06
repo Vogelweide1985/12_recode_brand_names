@@ -1,12 +1,11 @@
-library(dplyr)
-
+require(dplyr)
+require(tidyr)
 
 
 # Set Language to German
 Sys.setenv(LANG = "de_DE.UTF-8")
 
-#Reading dataset
-df <- readRDS("raw/unaided_brand_awareness.rds")
+
 
 #Creating Dictionary with aliases with banks of interest
 dict <- list("Deutsche Bank" = c("deutsche bank", "db"),
@@ -21,3 +20,29 @@ dict <- list("Deutsche Bank" = c("deutsche bank", "db"),
              "Spardabank" = c("sparda-bank", "sparda"),
              "Union Invest" = c("union invest", "union"),
              "N26" = c("n26"))
+
+
+
+df <- readRDS("raw/unaided_brand_awareness.rds") #Reading dataset
+df <- pivot_longer(df, starts_with("f06"), values_to = "answer") #Transform to Long-Format
+df <- filter(df, answer != "") #Remove blank answers
+
+
+#Preprocess answers
+string_format <- function(x) {     
+   x <- gsub("^\\s+|\\s+$", "", x) # remove trailing spaces
+   x <- tolower(x)   # to lower
+   x <- gsub("ä","ae",x) # remove german "Sonderlaute"
+   x <- gsub("ü","ue",x) # remove german "Sonderlaute"
+   x <- gsub("ö","oe",x) # remove german "Sonderlaute"
+   x <- gsub("ß","ss",x) # remove german "Sonderlaute"
+   x <- gsub("|","",x)   # remove special characters
+   return(x)
+}
+
+df$answer <- string_format(df$answer) #Applying function
+
+#Preprocess dict to vector
+dict_long <- unlist(dict)
+
+

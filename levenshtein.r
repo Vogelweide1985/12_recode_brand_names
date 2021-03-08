@@ -15,7 +15,7 @@ dict <- list("Deutsche Bank" = c("deutsche bank", "db"),
              "Targobank" = c("targobank", "targo"),
              "Sparkasse" = c("sparkasse", "kreissparkasse", "stadtsparkasse"),
              "Volks- und Raiffeisenbank" = c( "v+r", "volksbank", "raiffeisenbank", "volks und raiffeisenbank"),
-             "Ingdiba" = c("ing diba","ingdiba", "diba"),
+             "Ingdiba" = c("ing diba", "ing", "ingdiba", "diba"),
              "Santander"= c("santander"),
              "Spardabank" = c("sparda-bank", "sparda"),
              "Union Invest" = c("union invest", "union"),
@@ -74,7 +74,37 @@ for(i in 1: length(dict_long)) {
                                         unique_answers$lvl_1  )
 }
 
-
+#Level 2.1 and 2.2: LDM and LDM with Cut 2
 
 #Creating levenshtein distance matrix (ldm)
-ldm<- adist(df$answer, dict_long, costs = c("ins"=1, "del"=1, "sub"=2))
+levenshtein <- function(answers, dict, cut) {
+   
+   #Creating levenshetein distance
+   df <- adist(answers, dict, costs = c("ins"=1, "del"=1, "sub"=2))
+   
+   df <- as.data.frame(df) 
+   colnames(df) <- dict  # user friendly view
+   
+   #Decision making based on distance and cut
+   cols <- c("ldm", "ldm_cut", "min_distance", "col_index") # view result cols
+   df[, cols] <- NA # Init cols
+   for ( i in 1:nrow(df) ) { 
+      
+      df[i,"col_index"] <-  which.min(df[i,!(colnames(df) %in% cols )])
+      df[i,"min_distance"] <-  min(df[i,!(colnames(df) %in% cols )])
+      df[i,"ldm"] <- if(!is.na(df[i,"col_index"])) {colnames(df[df$col_index[i]]) } else {NA}
+      df[i,"ldm_cut"] <- if(df[i,"min_distance"] <=cut) {df[i,"ldm"]} else {NA}
+   }
+   
+   df$answers <- answers # original answers
+   df <-df[,c("answers",cols[1:(length(cols)-1)], dict)] #selecting
+   return(df)
+}
+
+
+ldm <- levenshtein(unique_answers$answer, dict_long, cut = 2)
+
+#Binding to df
+unique_answers$lvl_2_1 <- ldm$ldm
+unique_answers$lvl_2_2<- ldm$ldm_cut
+

@@ -50,7 +50,7 @@ dict_long <- unlist(dict)
 
 
 #Lets have a look on frequencies
-unique_answers <- df %>%
+df_unique <- df %>%
    group_by(answer) %>%
    summarise(n = n()) %>%
    arrange(desc(n)) %>%
@@ -61,23 +61,23 @@ unique_answers <- df %>%
 
 
 #Level 0: Exactmatching
-unique_answers$lvl_0 <- NA
+df_unique$lvl_0 <- NA
 for(i in 1: length(dict_long)) {
-   unique_answers$lvl_0 <- ifelse(unique_answers$answer == dict_long[i], dict_long[i],
-                                        unique_answers$lvl_0  )
+   df_unique$lvl_0 <- ifelse(df_unique$answer == dict_long[i], dict_long[i],
+                                        df_unique$lvl_0  )
 }
 
 #Level 1: Contains Word matching
-unique_answers$lvl_1 <- NA
+df_unique$lvl_1 <- NA
 for(i in 1: length(dict_long)) {
-   unique_answers$lvl_1 <- ifelse(grepl(dict_long[i], unique_answers$answer), dict_long[i],
-                                        unique_answers$lvl_1  )
+   df_unique$lvl_1 <- ifelse(grepl(dict_long[i], df_unique$answer), dict_long[i],
+                                        df_unique$lvl_1  )
 }
 
-#Level 2.1 and 2.2: LDM and LDM with Cut 2
+#Level 2.1 and 2.2: LDM and LDM with Cut 2, and Cut depending on string length
 
 #Creating levenshtein distance matrix (ldm)
-levenshtein <- function(answers, dict, cut) {
+levenshtein <- function(answers, dict) {
    
    #Creating levenshetein distance
    df <- adist(answers, dict, costs = c("ins"=1, "del"=1, "sub"=2))
@@ -86,25 +86,35 @@ levenshtein <- function(answers, dict, cut) {
    colnames(df) <- dict  # user friendly view
    
    #Decision making based on distance and cut
-   cols <- c("ldm", "ldm_cut", "min_distance", "col_index") # view result cols
+   cols <- c("ldm","min_distance", "col_index") # view result cols
    df[, cols] <- NA # Init cols
    for ( i in 1:nrow(df) ) { 
       
       df[i,"col_index"] <-  which.min(df[i,!(colnames(df) %in% cols )])
       df[i,"min_distance"] <-  min(df[i,!(colnames(df) %in% cols )])
-      df[i,"ldm"] <- if(!is.na(df[i,"col_index"])) {colnames(df[df$col_index[i]]) } else {NA}
-      df[i,"ldm_cut"] <- if(df[i,"min_distance"] <=cut) {df[i,"ldm"]} else {NA}
+      #df[i,"ldm"] <- if(!is.na(df[i,"col_index"])) {colnames(df[df$col_index[i]]) } else {NA}
+      df[i,"ldm"] <- ifelse(!is.na(df[i,"col_index"]), colnames(df[df$col_index[i]]) , NA)
    }
+      
    
-   df$answers <- answers # original answers
-   df <-df[,c("answers",cols[1:(length(cols)-1)], dict)] #selecting
+   df$answer <- answers # original answers
+   df <-df[,c("answer",cols[1:(length(cols)-1)], dict)] #selecting
    return(df)
 }
 
 
-ldm <- levenshtein(unique_answers$answer, dict_long, cut = 2)
+ldm <- levenshtein(df_unique$answer, dict_long)
 
 #Binding to df
-unique_answers$lvl_2_1 <- ldm$ldm
-unique_answers$lvl_2_2<- ldm$ldm_cut
+df_unique <- left_join(df_unique, ldm)
+df_unique$lvl_2_1 <- df_unique$ldm
+
+# Setting specific distance cuts, so classification is stopped, when dist is to far
+df_unique$lvl_2_2<- ifelse(df_unique$min_distance<= 2, df_unique$ldm, NA)
+df_unique$lvl_2_3<- ifelse(   (df_unique$min_distance <= 2 & nchar(df_unique$answer) >=2) | 
+                              (df_unique$min_distance <= 4 & nchar(df_unique$answer) >=8) | 
+                              (df_unique$min_distance <= 6 & nchar(df_unique$answer) >=12), df_unique$ldm, NA)
+class(df_unique)
+
+
 

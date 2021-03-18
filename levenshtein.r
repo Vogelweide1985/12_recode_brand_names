@@ -86,19 +86,16 @@ levenshtein <- function(answers, dict) {
    colnames(df) <- dict  # user friendly view
    
    #Decision making based on distance and cut
-   cols <- c("ldm","min_distance", "col_index") # view result cols
+   cols <- c("min_distance", "col_index") # view result cols
    df[, cols] <- NA # Init cols
    for ( i in 1:nrow(df) ) { 
       
       df[i,"col_index"] <-  which.min(df[i,!(colnames(df) %in% cols )])
       df[i,"min_distance"] <-  min(df[i,!(colnames(df) %in% cols )])
       #df[i,"ldm"] <- if(!is.na(df[i,"col_index"])) {colnames(df[df$col_index[i]]) } else {NA}
-      df[i,"ldm"] <- ifelse(!is.na(df[i,"col_index"]), colnames(df[df$col_index[i]]) , NA)
    }
-      
-   
+   df$ldm <- ifelse(!is.na(df["col_index"]), colnames(df)[df$col_index], NA )
    df$answer <- answers # original answers
-   df <-df[,c("answer",cols[1:(length(cols)-1)], dict)] #selecting
    return(df)
 }
 
@@ -114,7 +111,9 @@ df_unique$lvl_2_2<- ifelse(df_unique$min_distance<= 2, df_unique$ldm, NA)
 df_unique$lvl_2_3<- ifelse(   (df_unique$min_distance <= 2 & nchar(df_unique$answer) >=2) | 
                               (df_unique$min_distance <= 4 & nchar(df_unique$answer) >=8) | 
                               (df_unique$min_distance <= 6 & nchar(df_unique$answer) >=12), df_unique$ldm, NA)
-class(df_unique)
 
 
+# Level 3: Bringing levenshtein and Matching together
+
+df_unique$lvl_3 <- ifelse(!is.na(df_unique$lvl_1), df_unique$lvl_1, df_unique$lvl_2_3)
 

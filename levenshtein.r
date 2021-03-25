@@ -3,11 +3,19 @@ require(tidyr)
 require(purrr)
 require(forcats)
 require(caret) # only for confusion matrix
-# Set Language to German
-Sys.setenv(LANG = "de_DE.UTF-8")
+require(knitr) # for visualisiing purposes only, feel free to skip
+require(kableExtra) # for visualisiing purposes only, feel free to skip
+Sys.setenv(LANG = "de_DE.UTF-8") # Set Language to German
 
+#Reading dataset
+df <- readRDS("raw/unaided_brand_awareness.rds") 
+colnames(df) <- c("ID", paste("response", 1:8, sep = "_"))
 
+#First look
+kableExtra::kable(head(df[df$response_1 != "keine",], 40), "html") %>% kable_minimal() 
+length(unique(df$ID)) # N interviewe
 
+remove("vctrs")
 #Creating Dictionary with aliases with banks of interest
 dict <- list("Deutsche_Bank" = c("deutsche bank", "db"),
              "Commerzbank" = c("commerzbank"),
@@ -25,11 +33,9 @@ dict <- list("Deutsche_Bank" = c("deutsche bank", "db"),
 
 
 
-df <- readRDS("raw/unaided_brand_awareness.rds") #Reading dataset
-head(df, 50)#Lets have a look
 
 #Preprocess answers
-df <- pivot_longer(df, starts_with("f06"), values_to = "answer") #Transform to Long-Format
+df <- tidyr::pivot_longer(df, starts_with("response"), values_to = "answer") #Transform to Long-Format
 df <- filter(df, answer != "") #Remove blank answers
 
 string_format <- function(x) {     
@@ -46,10 +52,6 @@ string_format <- function(x) {
 df$answer <- string_format(df$answer) #Applying function
 
 
-#Preprocess dict to vector
-dict_long <- unlist(dict)
-
-
 #Lets have a look on frequencies
 df_unique <- df %>%
    group_by(answer) %>%
@@ -58,8 +60,16 @@ df_unique <- df %>%
    mutate(frq = n / sum(n)*100) %>%
    mutate(frq_sum = cumsum(frq))
 
-#PLOTS
 
+#Optional: Wordcloud
+library(wordcloud)
+library(RColorBrewer)
+wordcloud::wordcloud(df_unique$answer, df_unique$n, max.words = 1000, colors=brewer.pal(8, "Dark2"),
+                      random.order = F)
+
+
+
+dict_long <- unlist(dict) #Preprocess dict to vector
 
 #Level 0: Exactmatching
 df_unique$lvl_0 <- NA
@@ -182,4 +192,5 @@ caret::confusionMatrix(df_unique_expanded$lvl_2_1_rec, df_unique_expanded$lvl_4_
 caret::confusionMatrix(df_unique_expanded$lvl_2_2_rec, df_unique_expanded$lvl_4_rec )
 caret::confusionMatrix(df_unique_expanded$lvl_2_3_rec, df_unique_expanded$lvl_4_rec )
 caret::confusionMatrix(df_unique_expanded$lvl_3_rec, df_unique_expanded$lvl_4_rec )
+
 
